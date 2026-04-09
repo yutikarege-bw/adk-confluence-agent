@@ -213,5 +213,5 @@ __marimo__/
 # ADK
 .adk/
 
-# JSON
-*.json
+# JSON output
+output/
