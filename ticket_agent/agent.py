@@ -26,6 +26,7 @@ from .prompt import (
     TICKET_CREATOR_INSTRUCTION,
     TICKET_REFINER_INSTRUCTION,
 )
+from .schema import TicketInfo
 from .tools import confirm_ticket, exit_loop, save_input_artifact, save_ticket_json
 
 # ─── Config ───────────────────────────────────────────────────────────────────
@@ -39,6 +40,7 @@ ticket_creator = LlmAgent(
     model=MODEL,
     instruction=TICKET_CREATOR_INSTRUCTION,
     description="Creates a structured JIRA ticket JSON from clarified requirements.",
+    output_schema=TicketInfo,
     output_key="ticket_draft",
 )
 
@@ -59,7 +61,7 @@ ticket_refiner = LlmAgent(
 ticket_pipeline = LoopAgent(
     name="TicketCreationReviewLoop",
     sub_agents=[ticket_creator, ticket_refiner],
-    max_iterations=2,
+    max_iterations=3,  # minimum 2 full iterations are always enforced by the refiner
 )
 
 # ─── Root Agent: Conversational LlmAgent ─────────────────────────────────────
