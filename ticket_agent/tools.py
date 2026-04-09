@@ -1,98 +1,120 @@
 import json
-import io
+import os
+from datetime import datetime
+
 from google.adk.tools import ToolContext
 from google.genai import types
-from .schema import TicketInfo
+
+OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
-async def read_pdf_requirements(tool_context: ToolContext) -> dict:
-    """Read requirements from a PDF uploaded as an artifact named 'requirements.pdf'."""
-    try:
-        artifact = await tool_context.load_artifact("requirements.pdf")
-        if artifact is None or artifact.inline_data is None:
-            return {
-                "status": "not_found",
-                "message": "No PDF artifact found. Please upload a file named 'requirements.pdf' or describe your requirements directly.",
-            }
+async def save_input_artifact(
+    content: str,
+    filename: str,
+    tool_context: ToolContext,
+) -> dict:
+    """Save the user's raw input (plain text or extracted PDF content) as an artifact.
 
+    Args:
+        content: The raw text content from the user.
+        filename: Name for the artifact file (e.g. 'input.txt').
+        tool_context: ADK tool context (injected automatically).
+
+    Returns:
+        dict with save status and version info.
+    """
+    artifact = types.Part.from_bytes(
+        data=content.encode("utf-8"),
+        mime_type="text/plain",
+    )
+    version = await tool_context.save_artifact(filename=filename, artifact=artifact)
+    tool_context.state["raw_input"] = content
+    tool_context.state.setdefault("refinement_feedback", "")
+    return {"status": "saved", "filename": filename, "version": version}
+
+
+def confirm_ticket(ticket_json_str: str, tool_context: ToolContext) -> dict:
+    """Present the JIRA ticket to the user for approval before saving.
+
+    Uses ADK Tool Confirmation (HITL). On first call, pauses execution and
+    shows a confirmation dialog. On second call (after user responds),
+    returns the approval result.
+
+    Args:
+        ticket_json_str: The JIRA ticket as a JSON string to preview.
+        tool_context: ADK tool context (injected automatically).
+
+    Returns:
+        dict with status "pending_approval", "approved", or "rejected".
+    """
+    tool_confirmation = tool_context.tool_confirmation
+
+    if not tool_confirmation:
         try:
-            import pypdf
-        except ImportError:
-            return {"status": "error", "message": "pypdf is not installed. Run: pip install pypdf"}
+            ticket_data = json.loads(ticket_json_str)
+            pretty_preview = json.dumps(ticket_data, indent=2, ensure_ascii=False)
+        except json.JSONDecodeError:
+            pretty_preview = ticket_json_str
 
-        pdf_bytes = artifact.inline_data.data
-        reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
-        text = "\n".join(
-            page.extract_text() or "" for page in reader.pages
-        ).strip()
+        tool_context.request_confirmation(
+            hint=(
+                f"Please review the JIRA ticket and approve or reject it.\n\n"
+                f"{pretty_preview}\n\n"
+                f'Approve : {{"confirmed": true}}\n'
+                f'Reject  : {{"confirmed": false, "payload": {{"feedback": "your changes here"}}}}'
+            ),
+        )
+        return {"status": "pending_approval"}
 
-        if not text:
-            return {"status": "error", "message": "Could not extract text from the PDF."}
+    if tool_confirmation.confirmed:
+        return {"status": "approved", "ticket": ticket_json_str}
 
-        return {"status": "success", "requirements_text": text}
-
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-
-
-async def save_ticket_json(ticket_json: str, tool_context: ToolContext) -> dict:
-    """Compile and save the final JIRA ticket as a JSON artifact and a local file.
-
-    Args:
-        ticket_json: A JSON string with fields matching the TicketInfo schema:
-                     summary, description, acceptance_criteria, issue_type,
-                     priority, assignee, labels.
-    """
-    try:
-        raw = json.loads(ticket_json)
-        ticket = TicketInfo.model_validate(raw)
-        ticket_data = ticket.model_dump(exclude_none=False)
-
-        encoded = json.dumps(ticket_data, indent=2).encode("utf-8")
-        artifact = types.Part.from_bytes(data=encoded, mime_type="application/json")
-        await tool_context.save_artifact("ticket.json", artifact)
-
-        output_path = "ticket_output.json"
-        with open(output_path, "w") as f:
-            json.dump(ticket_data, f, indent=2)
-
-        return {"status": "success", "saved_to": output_path, "ticket": ticket_data}
-
-    except json.JSONDecodeError as e:
-        return {"status": "error", "message": f"Invalid JSON: {e}"}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
+    feedback = ""
+    if tool_confirmation.payload and isinstance(tool_confirmation.payload, dict):
+        feedback = tool_confirmation.payload.get("feedback", "")
+    return {"status": "rejected", "feedback": feedback}
 
 
-async def update_ticket_json(updates: str, tool_context: ToolContext) -> dict:
-    """Update specific fields in the existing saved ticket JSON.
+def exit_loop(tool_context: ToolContext) -> dict:
+    """Call this ONLY when the ticket quality is satisfactory and no further refinements are needed."""
+    tool_context.actions.escalate = True
+    return {"status": "loop_exited", "reason": "ticket_quality_sufficient"}
+
+
+
+async def save_ticket_json(ticket_json_str: str, tool_context: ToolContext) -> dict:
+    """Save the finalized JIRA ticket as both a local JSON file and an artifact.
 
     Args:
-        updates: A JSON string containing only the fields to update.
+        ticket_json_str: The complete JIRA ticket as a JSON string.
+        tool_context: ADK tool context (injected automatically).
+
+    Returns:
+        dict with status, file_path, and artifact version.
     """
     try:
-        update_dict = json.loads(updates)
-
-        artifact = await tool_context.load_artifact("ticket.json")
-        if artifact and artifact.inline_data:
-            ticket_data = json.loads(artifact.inline_data.data.decode("utf-8"))
-        else:
-            ticket_data = {}
-
-        ticket_data.update(update_dict)
-        ticket = TicketInfo.model_validate(ticket_data)
-        ticket_data = ticket.model_dump(exclude_none=False)
-
-        encoded = json.dumps(ticket_data, indent=2).encode("utf-8")
-        new_artifact = types.Part.from_bytes(data=encoded, mime_type="application/json")
-        await tool_context.save_artifact("ticket.json", new_artifact)
-
-        with open("ticket_output.json", "w") as f:
-            json.dump(ticket_data, f, indent=2)
-
-        return {"status": "success", "saved_to": "ticket_output.json", "ticket": ticket_data}
-
+        ticket_data = json.loads(ticket_json_str)
     except json.JSONDecodeError as e:
-        return {"status": "error", "message": f"Invalid JSON: {e}"}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": f"Invalid JSON: {str(e)}"}
+
+    pretty_json = json.dumps(ticket_data, indent=2, ensure_ascii=False)
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"ticket_{timestamp}.json"
+    filepath = os.path.join(OUTPUT_DIR, filename)
+    with open(filepath, "w", encoding="utf-8") as f:
+        f.write(pretty_json)
+
+    artifact = types.Part.from_bytes(
+        data=pretty_json.encode("utf-8"),
+        mime_type="application/json",
+    )
+    version = await tool_context.save_artifact(filename="ticket.json", artifact=artifact)
+
+    return {
+        "status": "saved",
+        "local_path": filepath,
+        "artifact_filename": "ticket.json",
+        "artifact_version": version,
+    }

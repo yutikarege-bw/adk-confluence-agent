@@ -1,0 +1,11 @@
+{
+  "summary": "Experiment: Maximum Number of Smokers per Continent",
+  "priority": "Medium",
+  "description": "Conduct an experiment to identify which continent has the highest number of smokers.",
+  "acceptance_criteria": [
+    "A count of smokers per continent is achieved.",
+    "A report or data visualization is generated showing smoker counts per continent and highlighting the continent with the highest count."
+  ],
+  "component": "Data Scientists",
+  "story_points": 5
+}
