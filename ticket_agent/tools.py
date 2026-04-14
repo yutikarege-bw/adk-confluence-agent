@@ -73,6 +73,8 @@ def confirm_ticket(ticket_json_str: str, tool_context: ToolContext) -> dict:
     feedback = ""
     if tool_confirmation.payload and isinstance(tool_confirmation.payload, dict):
         feedback = tool_confirmation.payload.get("feedback", "")
+    # Reset refinement_feedback so the next LoopAgent run starts fresh (2 full iterations)
+    tool_context.state["refinement_feedback"] = ""
     return {"status": "rejected", "feedback": feedback}
 
 
@@ -93,6 +95,9 @@ async def save_ticket_json(ticket_json_str: str, tool_context: ToolContext) -> d
     Returns:
         dict with status, file_path, and artifact version.
     """
+
+    print("Finalized JIRA Ticket JSON:", ticket_json_str)
+
     try:
         ticket_data = json.loads(ticket_json_str)
     except json.JSONDecodeError as e:
