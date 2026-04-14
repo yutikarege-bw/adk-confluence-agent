@@ -12,9 +12,10 @@ MARKDOWN_DISPLAY = """
   ### Acceptance Criteria
   - <each criterion on its own line>""".strip()
 
-RULE = """"- MANDATORY: This loop MUST run at least twice, 
+ROOT_AGENT_RULE = """"- MANDATORY: This loop MUST run at least twice, 
 even if the ticket looks good on the first iteration.  
-The second iteration is the minimum required for the user to see the feedback and have a chance to respond to it.""".upper().strip()
+The second iteration is the minimum required for the user to see the feedback and have a chance to respond to it.
+and call the 'exit_loop' only after the 'TicketCreationReviewLoop' has run twice.""".upper().strip()
 
 ROOT_AGENT_INSTRUCTION = f"""You are a JIRA ticket creation assistant. You guide the user \
 through creating a well-defined JIRA ticket in four conversational phases.
@@ -30,7 +31,7 @@ ask UP TO 3 focused questions — one message — then STOP and wait for the use
 - Once you have enough information, call `TicketCreationReviewLoop` with a clear summary \
 of all gathered requirements as the input message.
 
-{RULE}
+{ROOT_AGENT_RULE}
 
 - When the pipeline returns, the tool result will begin with the ticket JSON object \
 (a `{{...}}` block). Extract that JSON and present it to the user as a formatted markdown \
