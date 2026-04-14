@@ -84,7 +84,6 @@ def exit_loop(tool_context: ToolContext) -> dict:
     return {"status": "loop_exited", "reason": "ticket_quality_sufficient"}
 
 
-
 async def save_ticket_json(ticket_json_str: str, tool_context: ToolContext) -> dict:
     """Save the finalized JIRA ticket as both a local JSON file and an artifact.
 
