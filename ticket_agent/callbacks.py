@@ -7,7 +7,7 @@ from google.adk.tools.base_tool import BaseTool
 from google.adk.tools.tool_context import ToolContext
 from google.genai import types
 
-# ─── Logging Setup ────────────────────────────────────────────────────────────
+# --- Logging Setup ---
 
 LOG_FILE = os.path.join(os.path.dirname(__file__), "ticket_agent.log")
 
@@ -30,7 +30,7 @@ if not logger.handlers:
     logger.addHandler(_sh)
 
 
-# ─── Agent Callbacks ──────────────────────────────────────────────────────────
+# --- Agent Callbacks ---
 
 def on_agent_start(callback_context: CallbackContext) -> Optional[types.Content]:
     """Log when an agent begins its turn."""
@@ -44,7 +44,7 @@ def on_agent_end(callback_context: CallbackContext) -> Optional[types.Content]:
     return None
 
 
-# ─── Tool Callbacks ───────────────────────────────────────────────────────────
+# --- Tool Callbacks ---
 
 def on_tool_start(
     tool: BaseTool,

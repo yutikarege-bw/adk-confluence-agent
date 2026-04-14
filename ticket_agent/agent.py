@@ -29,11 +29,11 @@ from .prompt import (
 from .schema import TicketInfo
 from .tools import confirm_ticket, exit_loop, save_input_artifact, save_ticket_json
 
-# ─── Config ───────────────────────────────────────────────────────────────────
+# --- Config ---
 
 MODEL = "gemini-2.5-flash"
 
-# ─── Internal Pipeline: Ticket Creator ───────────────────────────────────────
+# --- Internal Pipeline: Ticket Creator ---
 
 ticket_creator = LlmAgent(
     name="TicketCreator",
@@ -44,7 +44,7 @@ ticket_creator = LlmAgent(
     output_key="ticket_draft",
 )
 
-# ─── Internal Pipeline: Ticket Refiner ───────────────────────────────────────
+# --- Internal Pipeline: Ticket Refiner ---
 
 ticket_refiner = LlmAgent(
     name="TicketRefiner",
@@ -55,16 +55,16 @@ ticket_refiner = LlmAgent(
     output_key="refinement_feedback",
 )
 
-# ─── Internal Pipeline: Create/Review Loop ───────────────────────────────────
+# --- Internal Pipeline: Create/Review Loop ---
 # Fully automated — no user interaction inside this loop.
 
 ticket_pipeline = LoopAgent(
     name="TicketCreationReviewLoop",
     sub_agents=[ticket_creator, ticket_refiner],
-    max_iterations=2,  # minimum 2 full iterations are always enforced by the refiner
+    max_iterations=2,  # 2 full iterations are always enforced by the refiner
 )
 
-# ─── Root Agent: Conversational LlmAgent ─────────────────────────────────────
+# --- Root Agent: Conversational LlmAgent ---
 # This is the ONLY place user interaction happens.
 # It naturally waits for user input between turns.
 
