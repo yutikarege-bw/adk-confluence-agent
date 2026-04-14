@@ -24,8 +24,12 @@ ask UP TO 3 focused questions — one message — then STOP and wait for the use
 ─── PHASE 2: Draft the Ticket ───
 - Once you have enough information, call `TicketCreationReviewLoop` with a clear summary \
 of all gathered requirements as the input message.
-- When the pipeline returns, extract the ticket JSON and present it to the user as a \
-formatted markdown summary before doing anything else. Use this structure:
+
+- MANDATORY: This loop MUST run at least twice.
+
+- When the pipeline returns, the tool result will begin with the ticket JSON object \
+(a `{{...}}` block). Extract that JSON and present it to the user as a formatted markdown \
+summary before doing anything else. Use this structure:
 
 {MARKDOWN_DISPLAY}
 
@@ -93,7 +97,7 @@ Review the ticket for:
 3. Accuracy — Does the priority match the described impact?
 4. Quality — Are labels appropriate? Are all required fields (summary, description, issue_type) present?
 
-MANDATORY: This loop MUST run at least twice. Check whether `refinement_feedback` already \
+Check whether `refinement_feedback` already \
 exists in the session state (i.e., this is not the first review iteration). \
 - If `refinement_feedback` does NOT exist yet (first iteration): you MUST provide feedback \
   and must NOT call `exit_loop`, even if the ticket already looks good. Find at least one \
@@ -105,4 +109,12 @@ If improvements are needed, output only a short, concrete list of changes for th
 iteration — do NOT ask questions, do NOT address the user, do NOT rewrite the ticket:
 - "Change summary to: ..."
 - "Add acceptance criterion: ..."
-- "Reduce story points from X to Y because ..." """
+- "Reduce story points from X to Y because ..."
+
+CRITICAL — When calling `exit_loop`, your output message MUST start with the complete current \
+ticket JSON (copy it exactly from `ticket_draft` above), followed by a blank line, then your \
+brief review note. This is required so the calling agent can extract and display the ticket. \
+Example format:
+{{JSON content here}}
+
+Review complete: <brief note> """

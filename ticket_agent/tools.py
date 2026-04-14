@@ -52,7 +52,7 @@ def confirm_ticket(ticket_json_str: str, tool_context: ToolContext) -> dict:
 
     if not tool_confirmation:
         try:
-            ticket_data = json.loads(ticket_json_str)
+            ticket_data = json.loads(ticket_json_str.strip())
             pretty_preview = json.dumps(ticket_data, indent=2, ensure_ascii=False)
         except json.JSONDecodeError:
             pretty_preview = ticket_json_str

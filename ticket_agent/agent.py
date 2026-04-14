@@ -61,7 +61,7 @@ ticket_refiner = LlmAgent(
 ticket_pipeline = LoopAgent(
     name="TicketCreationReviewLoop",
     sub_agents=[ticket_creator, ticket_refiner],
-    max_iterations=3,  # minimum 2 full iterations are always enforced by the refiner
+    max_iterations=2,  # minimum 2 full iterations are always enforced by the refiner
 )
 
 # ─── Root Agent: Conversational LlmAgent ─────────────────────────────────────
