@@ -79,7 +79,6 @@ def confirm_ticket(ticket_json_str: str, tool_context: ToolContext) -> dict:
 
 
 def exit_loop(tool_context: ToolContext) -> dict:
-    """Call this ONLY when the ticket quality is satisfactory and no further refinements are needed."""
     tool_context.actions.escalate = True
     return {"status": "loop_exited", "reason": "ticket_quality_sufficient"}
 
